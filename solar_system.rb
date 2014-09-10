@@ -1,8 +1,9 @@
 include Math
+$debug = "*" * 40
 
 class SolarSystem
 
-  def initialize(planets, age=4.568E9)
+  def initialize(planets, age=rand(1.3e10))
     @planets = planets
     @age = age.round
 
@@ -54,9 +55,37 @@ class SolarSystem
     end
 
     planet = @planets[choice_index]
+    puts "\n"
     puts planet
+    puts planet_distances(planet)
   end
 
+  def planet_distances(planet)
+    distance_string_list = []
+    distance_text = "\n#{planet.name} is "
+    @planets.each do |other_planet|
+      if not other_planet == planet
+        distance = planet.distance_to(other_planet)
+        # if distance < 0
+        #   puts "#{sprintf("%.2e", (-distance).to_s)} km closer to the sun than #{other_planet.name}."
+        # elsif distance > 0
+        #   puts "#{sprintf("%.2e", distance.to_s)} km farther from the sun than #{other_planet.name}."
+        # else
+        #   puts "#{planet.name} and #{other_planet.name} are the same distance from the sun. That's crazy!"
+        # end
+        if distance < 0
+          distance_string = "#{sprintf("%.2e", (-distance).to_s)} km closer to the sun than "
+        elsif distance > 0
+          distance_string = "#{sprintf("%.2e", (distance).to_s)} km farther from the sun than "
+        else
+          distance_string = "the same distance from the sun as"
+        end
+        distance_string += other_planet.name
+        distance_string_list << distance_string
+      end
+    end
+    distance_text += list_to_text(distance_string_list) + "."
+  end
 
   # this is very general and needs to go into a module
   def list_to_text(list, separator=" and ")
@@ -198,6 +227,11 @@ class Planet
     @mass = @density * @volume # in g
     @mass = @mass / 1000 # in kg
   end
+
+
+  def distance_to(planet)
+    return @orbital_radius - planet.orbital_radius
+  end
 end
 
 
@@ -228,6 +262,28 @@ def main
       orbital_rate: 1.0
     }]
 
+  test_planets3 = [
+    {
+      name: "Arglebargle",
+      type: :terrestrial_planet,
+      orbital_radius: 5E4,
+      orbital_rate: 0.25
+    },
+
+    {
+      name: "Blergh",
+      type: :terrestrial_planet,
+      orbital_radius: 1.5E5,
+      orbital_rate: 1.0
+    },
+
+    {
+      name: "Cletus",
+      type: :gas_giant,
+      orbital_radius: 5E5,
+      orbital_rate: 2.0
+    }]
+
   test_planets = [
     {
       name: "Arglebargle",
@@ -255,15 +311,13 @@ def main
       type: :dwarf_planet,
       orbital_radius: 2.5E9,
       orbital_rate: 247.0
-    }
-  ]
+    }]
 
-  test_planets.collect! { |planet| Planet.new(planet) }
+  planets = test_planets3.collect! { |planet| Planet.new(planet) }
 
-  s = SolarSystem.new(test_planets)
+  s = SolarSystem.new(planets)
   puts s
   s.display_for_user
 end
-
 
 main
