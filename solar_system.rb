@@ -5,33 +5,39 @@ class SolarSystem
   def initialize(planets, age=4.568E9)
     @planets = planets
     @age = age.round
+
     @planets.each do |planet|
       planet.local_age = (@age / planet.orbital_rate)
+      planet.value_strings[:local_age] = sprintf("%.2e", planet.local_age)
     end
   end
 
+
   def to_s
-    return "This solar system is #{sprintf("%.2e", @age)} arbitrary years old and contains #{@planets.length} planets.\n\n"
+    return "This solar system is #{sprintf("%.2e", @age)} arbitrary years old and contains #{@planets.length} #{@planets.length == 1? "planet" : "planets"}. "
   end
+
 
   def display_for_user
     if @planets.length == 0
-      abort "This isn't a solar system, it's just a star with no planets. Sorry I couldn't tell you anything cool."
+      abort "It's not actually a solar system though, it's just a star with no planets. Sorry to mislead you."
 
     elsif @planets.length == 1
-      puts "This solar system contains the planet #{@planets[0].name}."
+      puts "Here's the data about it."
       puts @planets[0]
 
     else
-      intro = "This solar system contains the planets "
+      intro = "They are "
       name_string = list_to_text(get_name_list)
       puts intro + name_string + ". Which do you want to learn about?"
+
       while true
         get_planet_data
         puts "\nEnter another planet to see its data, or Q to quit."
       end
     end
   end
+
 
   def get_planet_data
     choice = gets.chomp.capitalize
@@ -48,11 +54,11 @@ class SolarSystem
     end
 
     planet = @planets[choice_index]
-    puts planet # not precisely what was specified but I like this better...
-    planet.generate_summary_table # not implemented
+    puts planet
   end
 
-  # this is very general and needs to go into a module, I'm going to use it again
+
+  # this is very general and needs to go into a module
   def list_to_text(list, separator=" and ")
     if list.length > 2
       i = 0
@@ -65,12 +71,15 @@ class SolarSystem
 
       text += (separator.lstrip + list.last)
       return text
+
     elsif list.length == 2
       return list.join(separator)
+
     else
       return list[0]
     end
   end
+
 
   def get_name_list
     return @planets.collect { |planet| planet.name }
@@ -79,7 +88,8 @@ end
 
 class Planet
   attr_accessor :local_age, :orbital_rate # for SolarSystem's math
-  attr_accessor :name, :type, :orbital_radius, :radius, :volume, :density, :mass, :moons # for SolarSystem's user interface
+  attr_accessor :name, :type, :orbital_radius, :radius, :volume, :density, :mass, :moons, :value_strings, :units # for SolarSystem's user interface
+
 
   def initialize(planet)
     @name = planet[:name]
@@ -88,35 +98,77 @@ class Planet
     @orbital_rate = planet[:orbital_rate] # this should depend on orbital radius, not be hard-coded
 
     set_properties
-  end
 
-  def to_s
     big_number_display = "%.2e"
     regular_number_display = "%.2f"
 
-# => figure out how to collect all instance variables as keys in a hash
-
-#   data_strings =
-    # {
-    #   name_string: @name,
-    #   type_string: @type.to_s.sub("_", " "),
-    #   radius_string: sprintf(big_number_display, @radius),
-    #   density_string: sprintf(regular_number_display, @density),
-    #   mass_string: sprintf(big_number_display, @mass),
-    #   local_age_string: sprintf(big_number_display, @local_age)
-    # }
-
-    type_string = @type.to_s.sub("_", " ")
-    radius_string = sprintf(big_number_display, @radius)
-    density_string = sprintf(regular_number_display, @density)
-    mass_string = sprintf(big_number_display, @mass)
-    local_age_string = sprintf(big_number_display, @local_age)
-
-    return "\n#{@name} is a #{type_string} with radius #{radius_string} km and density #{density_string} g per cc, which works out to a mass of #{mass_string} kg. It has #{@moons} moons. It takes #{@orbital_rate} arbitrary years to make one revolution around the sun, making it #{local_age_string} #{@name}-years old.\n"
+    @value_strings = {
+      name: @name,
+      type: @type.to_s.capitalize.sub("_", " "),
+      orbital_radius: sprintf(big_number_display, @orbital_radius),
+      orbital_rate: @orbital_rate.to_s,
+      radius: sprintf(big_number_display, @radius),
+      density: sprintf(regular_number_display, @density),
+      moons: @moons.to_s,
+      volume: sprintf(big_number_display, @volume),
+      mass: sprintf(big_number_display, @mass)
+    }
+    # Same as above
+    @units = {
+      orbital_radius: "km",
+      orbital_rate: "arbitrary years",
+      radius: "km",
+      density: "g per cubic cm",
+      moons: @moons == 1 ? "moon" : "moons",
+      volume: "cubic km",
+      mass: "kg",
+      local_age: "arbitrary years"
+    }
   end
 
-  def generate_summary_table
+
+  def to_s
+    table = []
+
+    variable_names = instance_variables.collect {|variable_name| variable_name.to_s[1..-1].to_sym } # to strip off the leading @ from the instance variable names and then convert them back to symbols to access the values and units arrays
+    variable_names.delete(:value_strings)
+    variable_names.delete(:units)
+
+    variable_names.each do |variable_name|
+      row_title = variable_name.to_s.capitalize.sub("_", " ") + ": "
+      row_value = @value_strings[variable_name]
+#      row_unit = @units[variable_name]? row_unit : "" # something is wrong with this
+      row_unit = @units[variable_name]
+      if not row_unit
+        row_unit = ""
+      end
+      row = row_title + row_value + " " + row_unit
+      table << row
+    end
+
+    return table.join("\n")
   end
+
+
+  # I didn't use this here but I don't want to delete it in case I want it for something else. I need to figure out about modules
+  def get_column_widths
+    string_keys = @value_strings.collect { |key, *| key.length }
+    string_values = @value_strings.collect { |*, value| value.length }
+    unit_values = @units.collect { |*, value| value.length }
+
+    longest_string = string_keys.max + 2
+    longest_value = string_values.max + 2
+    longest_unit = unit_values.max + 2
+
+    widths = {
+      variable_column: longest_string,
+      value_column: longest_value,
+      unit_column: longest_unit
+    }
+
+    return widths
+  end
+
 
   def set_properties
     case @type
@@ -133,10 +185,12 @@ class Planet
       @density = rand(0.5..2.0)
       @moons = rand(25..75)
     end
+
     @radius = @radius
     @density = @density
     @mass = calc_mass
   end
+
 
   def calc_mass
     radius_cm = @radius * 1E6 # convert km to cm
@@ -145,6 +199,7 @@ class Planet
     @mass = @mass / 1000 # in kg
   end
 end
+
 
 def main
 
@@ -160,18 +215,18 @@ def main
 
   test_planets2 = [
     {
-    name: "Arglebargle",
-    type: :terrestrial_planet,
-    orbital_radius: 5E4,
-    orbital_rate: 0.25
-  },
+      name: "Arglebargle",
+      type: :terrestrial_planet,
+      orbital_radius: 5E4,
+      orbital_rate: 0.25
+    },
 
-  {
-    name: "Blergh",
-    type: :terrestrial_planet,
-    orbital_radius: 1.5E5,
-    orbital_rate: 1.0
-  }]
+    {
+      name: "Blergh",
+      type: :terrestrial_planet,
+      orbital_radius: 1.5E5,
+      orbital_rate: 1.0
+    }]
 
   test_planets = [
     {
@@ -208,7 +263,7 @@ def main
   s = SolarSystem.new(test_planets)
   puts s
   s.display_for_user
-
 end
+
 
 main
