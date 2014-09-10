@@ -1,11 +1,12 @@
 include Math
-$debug = "*" * 40
+
 
 class SolarSystem
 
+
   def initialize(planets, age=rand(1.3e10))
     @planets = planets
-    @age = age.round
+    @age = age
 
     @planets.each do |planet|
       planet.local_age = (@age / planet.orbital_rate)
@@ -15,7 +16,8 @@ class SolarSystem
 
 
   def to_s
-    return "This solar system is #{sprintf("%.2e", @age)} arbitrary years old and contains #{@planets.length} #{@planets.length == 1? "planet" : "planets"}. "
+    return "This solar system is #{sprintf("%.2e", @age)} arbitrary years old and contains #{@planets.length} #{if @planets.length == 1 then "planet" else "planets" end}. "
+    # I could add a list of planets in order, numbered so the user can enter the number instead of typing the name
   end
 
 
@@ -28,9 +30,8 @@ class SolarSystem
       puts @planets[0]
 
     else
-      intro = "They are "
-      name_string = list_to_text(get_name_list)
-      puts intro + name_string + ". Which do you want to learn about?"
+      name_string = "They are " + list_to_text(get_name_list) + ". Which do you want to learn about?"
+      puts name_string
 
       while true
         get_planet_data
@@ -48,7 +49,7 @@ class SolarSystem
       if choice == 'Quit' or choice == 'Q'
         abort "\nPeace out."
       else
-        puts "\nPlanet #{choice} isn't in this solar system. Try again."
+        puts "\nThere's no planet #{choice} in this solar system. Try again."
         choice = gets.chomp.capitalize
         choice_index = get_name_list.index(choice)
       end
@@ -60,19 +61,15 @@ class SolarSystem
     puts planet_distances(planet)
   end
 
+
   def planet_distances(planet)
     distance_string_list = []
     distance_text = "\n#{planet.name} is "
+
     @planets.each do |other_planet|
+
       if not other_planet == planet
         distance = planet.distance_to(other_planet)
-        # if distance < 0
-        #   puts "#{sprintf("%.2e", (-distance).to_s)} km closer to the sun than #{other_planet.name}."
-        # elsif distance > 0
-        #   puts "#{sprintf("%.2e", distance.to_s)} km farther from the sun than #{other_planet.name}."
-        # else
-        #   puts "#{planet.name} and #{other_planet.name} are the same distance from the sun. That's crazy!"
-        # end
         if distance < 0
           distance_string = "#{sprintf("%.2e", (-distance).to_s)} km closer to the sun than "
         elsif distance > 0
@@ -80,14 +77,17 @@ class SolarSystem
         else
           distance_string = "the same distance from the sun as"
         end
+
         distance_string += other_planet.name
         distance_string_list << distance_string
       end
     end
-    distance_text += list_to_text(distance_string_list) + "."
+
+    return distance_text += list_to_text(distance_string_list) + "."
   end
 
-  # this is very general and needs to go into a module
+
+  # this is very general and needs to go into a module (with an argument for oxford commas)
   def list_to_text(list, separator=" and ")
     if list.length > 2
       i = 0
@@ -115,16 +115,17 @@ class SolarSystem
   end
 end
 
+
+
 class Planet
-  attr_accessor :local_age, :orbital_rate # for SolarSystem's math
-  attr_accessor :name, :type, :orbital_radius, :radius, :volume, :density, :mass, :moons, :value_strings, :units # for SolarSystem's user interface
+  attr_accessor :local_age, :orbital_rate, :name, :type, :orbital_radius, :radius, :volume, :density, :mass, :moons, :value_strings, :units
 
 
   def initialize(planet)
     @name = planet[:name]
     @type = planet[:type]
-    @orbital_radius =  planet[:orbital_radius] # can i just give it its order from the sun and calculate from that? can i calculate this inside SolarSystem class? Pretty sure i can
-    @orbital_rate = planet[:orbital_rate] # this should depend on orbital radius, not be hard-coded
+    @orbital_radius =  planet[:orbital_radius]
+    @orbital_rate = planet[:orbital_rate]
 
     set_properties
 
@@ -135,20 +136,20 @@ class Planet
       name: @name,
       type: @type.to_s.capitalize.sub("_", " "),
       orbital_radius: sprintf(big_number_display, @orbital_radius),
-      orbital_rate: @orbital_rate.to_s,
+      orbital_rate: sprintf(regular_number_display, @orbital_rate),
       radius: sprintf(big_number_display, @radius),
       density: sprintf(regular_number_display, @density),
       moons: @moons.to_s,
       volume: sprintf(big_number_display, @volume),
       mass: sprintf(big_number_display, @mass)
     }
-    # Same as above
+
     @units = {
       orbital_radius: "km",
       orbital_rate: "arbitrary years",
       radius: "km",
       density: "g per cubic cm",
-      moons: @moons == 1 ? "moon" : "moons",
+      moons: if @moons == 1 then "moon" else "moons" end,
       volume: "cubic km",
       mass: "kg",
       local_age: "arbitrary years"
@@ -159,18 +160,16 @@ class Planet
   def to_s
     table = []
 
-    variable_names = instance_variables.collect {|variable_name| variable_name.to_s[1..-1].to_sym } # to strip off the leading @ from the instance variable names and then convert them back to symbols to access the values and units arrays
+    variable_names = instance_variables.collect {|variable_name| variable_name.to_s[1..-1].to_sym } # to strip off the leading @ from the instance variable names and then convert them back to symbols to access the values and units arrays. Only about 75% clear on why I needed to do this
     variable_names.delete(:value_strings)
     variable_names.delete(:units)
 
     variable_names.each do |variable_name|
       row_title = variable_name.to_s.capitalize.sub("_", " ") + ": "
       row_value = @value_strings[variable_name]
-#      row_unit = @units[variable_name]? row_unit : "" # something is wrong with this
       row_unit = @units[variable_name]
-      if not row_unit
-        row_unit = ""
-      end
+      row_unit = if row_unit then row_unit else "" end # to convert nil units to an empty string since nil can't be concatenated to a string
+
       row = row_title + row_value + " " + row_unit
       table << row
     end
@@ -205,18 +204,22 @@ class Planet
       @radius = rand(2E3..1E4)
       @density = rand(2.0..3.0)
       @moons = rand(0..1)
+      @orbital_radius = rand(5E9..5E10)
     when :terrestrial_planet
       @radius = rand(2E4..1E5)
       @density = rand(3.0..6.0)
       @moons = rand(0..3)
+      @orbital_radius = rand(5E7..5E8)
     when :gas_giant
       @radius = rand (2E5..1E6)
       @density = rand(0.5..2.0)
       @moons = rand(25..75)
+      @orbital_radius = rand(1E9..5E9)
     end
 
     @radius = @radius
     @density = @density
+    @orbital_rate = @orbital_radius / rand(1E7..1E8)
     @mass = calc_mass
   end
 
@@ -313,7 +316,7 @@ def main
       orbital_rate: 247.0
     }]
 
-  planets = test_planets3.collect! { |planet| Planet.new(planet) }
+  planets = test_planets.collect! { |planet| Planet.new(planet) }
 
   s = SolarSystem.new(planets)
   puts s
